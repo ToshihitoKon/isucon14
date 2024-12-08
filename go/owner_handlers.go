@@ -211,6 +211,7 @@ FROM (
     ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
     ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
   FROM chair_locations
+	FORCE INDEX (idx_latitude_longitude_chair_id_created_at)
 ) AS tmp
 GROUP BY
   chair_id
