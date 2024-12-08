@@ -190,27 +190,39 @@ type ownerGetChairResponseChair struct {
 	TotalDistanceUpdatedAt *int64 `json:"total_distance_updated_at,omitempty"`
 }
 
+type distanceDetail struct {
+	ChairID                string    `db:"chair_id"`
+	TotalDistance          int       `db:"total_distance"`
+	TotalDistanceUpdatedAt time.Time `db:"total_distance_updated_at"`
+}
+
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	owner := ctx.Value("owner").(*Owner)
 
-	chairs := []chairWithDetail{}
-	if err := db.SelectContext(ctx, &chairs, `
-WITH distance_table AS (
+	distanceDetail := []distanceDetail{}
+	if err := db.SelectContext(ctx, &distanceDetail, `
+SELECT
+  chair_id,
+  SUM(IFNULL(distance, 0)) AS total_distance,
+  MAX(created_at)          AS total_distance_updated_at
+FROM (
   SELECT
     chair_id,
-    SUM(IFNULL(distance, 0)) AS total_distance,
-    MAX(created_at)          AS total_distance_updated_at
-  FROM (
-    SELECT
-      chair_id,
-      created_at,
-      ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-      ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-    FROM chair_locations
-  ) AS tmp
-  GROUP BY chair_id
-)
+    created_at,
+    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+  FROM chair_locations
+) AS tmp
+GROUP BY
+  chair_id
+`); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	chairs := []chairWithDetail{}
+	if err := db.SelectContext(ctx, &chairs, `
 SELECT
   c.id,
   c.owner_id,
@@ -219,13 +231,9 @@ SELECT
   c.model,
   c.is_active,
   c.created_at,
-  c.updated_at,
-  IFNULL(total_distance, 0) AS total_distance,
-  dt.total_distance_updated_at
+  c.updated_at
 FROM
   chairs AS c
-LEFT JOIN
-  distance_table AS dt ON dt.chair_id = c.id
 WHERE
   c.owner_id = ?
 `, owner.ID); err != nil {
@@ -235,13 +243,14 @@ WHERE
 
 	res := ownerGetChairResponse{}
 	for _, chair := range chairs {
+		distance := distanceByChairId(chair.ID, distanceDetail)
 		c := ownerGetChairResponseChair{
 			ID:            chair.ID,
 			Name:          chair.Name,
 			Model:         chair.Model,
 			Active:        chair.IsActive,
-			RegisteredAt:  chair.CreatedAt.UnixMilli(),
-			TotalDistance: chair.TotalDistance,
+			RegisteredAt:  distance.TotalDistanceUpdatedAt.UnixMilli(),
+			TotalDistance: distance.TotalDistance,
 		}
 		if chair.TotalDistanceUpdatedAt.Valid {
 			t := chair.TotalDistanceUpdatedAt.Time.UnixMilli()
@@ -250,4 +259,13 @@ WHERE
 		res.Chairs = append(res.Chairs, c)
 	}
 	writeJSON(w, http.StatusOK, res)
+}
+
+func distanceByChairId(chairId string, array []distanceDetail) distanceDetail {
+	for _, v := range array {
+		if v.ChairID == chairId {
+			return v
+		}
+	}
+	return distanceDetail{}
 }
