@@ -883,15 +883,13 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rides := []*Ride{}
-	if err := tx.SelectContext(ctx, &rides, `SELECT * FROM rides ORDER BY created_at DESC`); err != nil {
+	if err := tx.SelectContext(ctx, &rides, `SELECT * FROM rides`); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	status := []struct {
-		rideId string `db:"ride_id"`
-	}{}
-	if err := tx.GetContext(ctx, &status, `SELECT ride_id FROM ride_statuses WHERE status = "COMPLETED"`); err != nil {
+	status := []*RideStatus{}
+	if err := tx.GetContext(ctx, &status, `SELECT ride_id FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -917,10 +915,15 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 
 		for _, s := range rides {
 			if chair.ID == s.ID {
+				skip := false
 				for _, st := range status {
-					if s.ID == st.rideId {
-						continue
+					if s.ID == st.RideID {
+						skip = true
+						break
 					}
+				}
+				if skip {
+					continue
 				}
 				for _, cl := range chairLocation {
 					if calculateDistance(coordinate.Latitude, coordinate.Longitude, cl.Latitude, cl.Longitude) <= distance {
