@@ -116,7 +116,7 @@ CREATE TABLE ride_statuses
   INDEX idx_ride_id (ride_id),
   INDEX idx_ride_id_app_sent_at (ride_id, app_sent_at),
   INDEX idx_ride_id_created_at (ride_id, created_at),
-  INDEX idx_ride_id_created_at_desc (ride_id, created_at desc)
+  INDEX idx_ride_id_created_at_desc (ride_id, created_at desc),
   INDEX idx_ride_id_chair_sent_at (ride_id, chair_sent_at)
 )
   COMMENT = 'ライドステータスの変更履歴テーブル';
