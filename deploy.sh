@@ -19,4 +19,6 @@ sudo nginx -t
 sudo systemctl restart mysql
 sudo systemctl restart nginx
 
+sudo bash -c 'echo > /var/log/mysql/mysql-slow.log'
+
 echo "デプロイ"
