@@ -889,7 +889,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rideStatus := []*RideStatus{}
-	if err := tx.SelectContext(ctx, &rideStatus, `SELECT * FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
+	if err := tx.SelectContext(ctx, &rideStatus, `SELECT * FROM ride_statuses`); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -917,7 +917,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 			if chair.ID == s.ID {
 				skip := false
 				for _, st := range rideStatus {
-					if s.ID == st.RideID {
+					if s.ID == st.RideID && st.Status != "COMPLETED" {
 						skip = true
 						break
 					}
