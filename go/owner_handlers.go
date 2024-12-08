@@ -241,29 +241,25 @@ WHERE
 
 	res := ownerGetChairResponse{}
 	for _, chair := range chairs {
-		distance := distanceByChairId(chair.ID, distanceDetail)
 		c := ownerGetChairResponseChair{
 			ID:            chair.ID,
 			Name:          chair.Name,
 			Model:         chair.Model,
 			Active:        chair.IsActive,
 			RegisteredAt:  chair.CreatedAt.UnixMilli(),
-			TotalDistance: distance.TotalDistance,
+			TotalDistance: 0,
 		}
-		if distance.TotalDistanceUpdatedAt.Valid {
-			t := distance.TotalDistanceUpdatedAt.Time.UnixMilli()
-			c.TotalDistanceUpdatedAt = &t
+		for _, detail := range distanceDetail {
+			if detail.ChairID == chair.ID {
+				c.TotalDistance = detail.TotalDistance
+				if detail.TotalDistanceUpdatedAt.Valid {
+					t := detail.TotalDistanceUpdatedAt.Time.UnixMilli()
+					c.TotalDistanceUpdatedAt = &t
+				}
+				break
+			}
 		}
 		res.Chairs = append(res.Chairs, c)
 	}
 	writeJSON(w, http.StatusOK, res)
-}
-
-func distanceByChairId(chairId string, array []distanceDetail) distanceDetail {
-	for _, v := range array {
-		if v.ChairID == chairId {
-			return v
-		}
-	}
-	return distanceDetail{}
 }
