@@ -98,8 +98,8 @@ CREATE TABLE rides
   PRIMARY KEY (id),
   INDEX idx_user_id (user_id),
   INDEX idx_user_id_created_at (user_id, created_at),
-  INDEX idx_chair_id_updated_at (chair_id, updated_at desc),
-  INDEX idx_chair_id_created_at (chair_id, created_at)
+  INDEX idx_chair_id_updated_at_desc (chair_id, updated_at desc),
+  INDEX idx_chair_id_created_at_desc (chair_id, created_at desc)
 )
   COMMENT = 'ライド情報テーブル';
 
