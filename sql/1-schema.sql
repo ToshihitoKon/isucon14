@@ -98,7 +98,7 @@ CREATE TABLE rides
   PRIMARY KEY (id),
   INDEX idx_user_id (user_id),
   INDEX idx_user_id_created_at (user_id, created_at),
-  INDEX idx_chair_id_updated_at (chair_id, updated_at),
+  INDEX idx_chair_id_updated_at (chair_id, updated_at desc),
   INDEX idx_chair_id_created_at (chair_id, created_at)
 )
   COMMENT = 'ライド情報テーブル';
@@ -115,7 +115,7 @@ CREATE TABLE ride_statuses
   PRIMARY KEY (id),
   INDEX idx_ride_id (ride_id),
   INDEX idx_ride_id_app_sent_at (ride_id, app_sent_at),
-  INDEX idx_ride_id_created_at (ride_id, created_at)
+  INDEX idx_ride_id_created_at (ride_id, created_at desc)
 )
   COMMENT = 'ライドステータスの変更履歴テーブル';
 
