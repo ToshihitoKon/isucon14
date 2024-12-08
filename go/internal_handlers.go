@@ -32,7 +32,8 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < 10; i++ {
 		var total int
-		if err := tx.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE AND chair_id IS NULL"); err != nil {
+		// 椅子の総数を取得
+		if err := tx.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE"); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -43,7 +44,8 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 		randOffset := rand.Intn(total)
 		matched = &Chair{}
-		if err := tx.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE AND chair_id IS NULL LIMIT 1 OFFSET ?", randOffset); err != nil {
+		// ランダムな椅子を取得
+		if err := tx.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE LIMIT 1 OFFSET ?", randOffset); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
