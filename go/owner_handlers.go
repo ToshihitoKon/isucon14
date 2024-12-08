@@ -197,37 +197,37 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	chairs := []chairWithDetail{}
 	if err := db.SelectContext(ctx, &chairs, `
 WITH distance_table AS (
-	SELECT
-		chair_id,
-		SUM(IFNULL(distance, 0)) AS total_distance,
-		MAX(created_at)          AS total_distance_updated_at
-	FROM (
-		SELECT
-			chair_id,
-			created_at,
-			ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-			ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-		FROM chair_locations
-	)
-	GROUP BY chair_id
+  SELECT
+    chair_id,
+    SUM(IFNULL(distance, 0)) AS total_distance,
+    MAX(created_at)          AS total_distance_updated_at
+  FROM (
+    SELECT
+      chair_id,
+      created_at,
+      ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+      ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+    FROM chair_locations
+  )
+  GROUP BY chair_id
 )
 SELECT
-	c.id,
-	c.owner_id,
-	c.name,
-	c.access_token,
-	c.model,
-	c.is_active,
-	c.created_at,
-	c.updated_at,
-	IFNULL(total_distance, 0) AS total_distance,
-	dt.total_distance_updated_at
+  c.id,
+  c.owner_id,
+  c.name,
+  c.access_token,
+  c.model,
+  c.is_active,
+  c.created_at,
+  c.updated_at,
+  IFNULL(total_distance, 0) AS total_distance,
+  dt.total_distance_updated_at
 FROM
-	chairs AS c
+  chairs AS c
 LEFT JOIN
-	distance_table AS dt ON dt.chair_id = c.id
+  distance_table AS dt ON dt.chair_id = c.id
 WHERE
-	c.owner_id = ?
+  c.owner_id = ?
 `, owner.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
