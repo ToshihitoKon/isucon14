@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -164,16 +166,14 @@ func calculateSale(ride Ride) int {
 }
 
 type chairWithDetail struct {
-	ID                     string       `db:"id"`
-	OwnerID                string       `db:"owner_id"`
-	Name                   string       `db:"name"`
-	AccessToken            string       `db:"access_token"`
-	Model                  string       `db:"model"`
-	IsActive               bool         `db:"is_active"`
-	CreatedAt              time.Time    `db:"created_at"`
-	UpdatedAt              time.Time    `db:"updated_at"`
-	TotalDistance          int          `db:"total_distance"`
-	TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
+	ID          string    `db:"id"`
+	OwnerID     string    `db:"owner_id"`
+	Name        string    `db:"name"`
+	AccessToken string    `db:"access_token"`
+	Model       string    `db:"model"`
+	IsActive    bool      `db:"is_active"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
 }
 
 type ownerGetChairResponse struct {
@@ -190,27 +190,18 @@ type ownerGetChairResponseChair struct {
 	TotalDistanceUpdatedAt *int64 `json:"total_distance_updated_at,omitempty"`
 }
 
+type distanceDetail struct {
+	ChairID                string       `db:"chair_id"`
+	TotalDistance          int          `db:"total_distance"`
+	TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
+}
+
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	owner := ctx.Value("owner").(*Owner)
 
 	chairs := []chairWithDetail{}
 	if err := db.SelectContext(ctx, &chairs, `
-WITH distance_table AS (
-  SELECT
-    chair_id,
-    SUM(IFNULL(distance, 0)) AS total_distance,
-    MAX(created_at)          AS total_distance_updated_at
-  FROM (
-    SELECT
-      chair_id,
-      created_at,
-      ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-      ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-    FROM chair_locations
-  ) AS tmp
-  GROUP BY chair_id
-)
 SELECT
   c.id,
   c.owner_id,
@@ -219,16 +210,40 @@ SELECT
   c.model,
   c.is_active,
   c.created_at,
-  c.updated_at,
-  IFNULL(total_distance, 0) AS total_distance,
-  dt.total_distance_updated_at
+  c.updated_at
 FROM
   chairs AS c
-LEFT JOIN
-  distance_table AS dt ON dt.chair_id = c.id
 WHERE
   c.owner_id = ?
 `, owner.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	ids := []string{}
+	for _, chair := range chairs {
+		ids = append(ids, fmt.Sprintf(`"%s"`, chair.ID))
+	}
+
+	distanceDetail := []distanceDetail{}
+	if err := db.SelectContext(ctx, &distanceDetail, fmt.Sprintf(`
+SELECT
+  chair_id,
+  SUM(distance) AS total_distance,
+  MAX(created_at)          AS total_distance_updated_at
+FROM (
+  SELECT
+    chair_id,
+    created_at,
+    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+  FROM chair_locations
+	FORCE INDEX (idx_latitude_longitude_chair_id_created_at)
+	WHERE chair_id IN (%s)
+) AS tmp
+GROUP BY
+  chair_id
+`, strings.Join(ids, ","))); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -241,11 +256,17 @@ WHERE
 			Model:         chair.Model,
 			Active:        chair.IsActive,
 			RegisteredAt:  chair.CreatedAt.UnixMilli(),
-			TotalDistance: chair.TotalDistance,
+			TotalDistance: 0,
 		}
-		if chair.TotalDistanceUpdatedAt.Valid {
-			t := chair.TotalDistanceUpdatedAt.Time.UnixMilli()
-			c.TotalDistanceUpdatedAt = &t
+		for _, detail := range distanceDetail {
+			if detail.ChairID == chair.ID {
+				c.TotalDistance = detail.TotalDistance
+				if detail.TotalDistanceUpdatedAt.Valid {
+					t := detail.TotalDistanceUpdatedAt.Time.UnixMilli()
+					c.TotalDistanceUpdatedAt = &t
+				}
+				break
+			}
 		}
 		res.Chairs = append(res.Chairs, c)
 	}
