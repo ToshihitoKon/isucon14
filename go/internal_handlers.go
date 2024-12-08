@@ -20,8 +20,9 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	empty := false
 	var matched *Chair
+	found := false
+
 	for i := 0; i < 10; i++ {
 		var total int
 		if err := db.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE"); err != nil {
@@ -34,21 +35,31 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		}
 
 		randOffset := rand.Intn(total)
-		matched := &Chair{}
+		matched = &Chair{}
 		if err := db.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE LIMIT 1 OFFSET ?", randOffset); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		if err := db.GetContext(ctx, &empty, "SELECT COUNT(*) = 0 FROM (SELECT COUNT(chair_sent_at) = 6 AS completed FROM ride_statuses WHERE ride_id IN (SELECT id FROM rides WHERE chair_id = ?) GROUP BY ride_id) is_completed WHERE completed = FALSE", matched.ID); err != nil {
+		var incompleteCount int
+		query := `
+            SELECT COUNT(*)
+            FROM ride_statuses
+            WHERE ride_id IN (SELECT id FROM rides WHERE chair_id = ?)
+              AND chair_sent_at < 6
+        `
+		if err := db.GetContext(ctx, &incompleteCount, query, matched.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		if empty {
+
+		if incompleteCount == 0 {
+			found = true
 			break
 		}
 	}
-	if !empty {
+
+	if !found {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
