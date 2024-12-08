@@ -20,5 +20,3 @@ sudo systemctl restart mysql
 sudo systemctl restart nginx
 
 echo "デプロイ"
-~
-~
