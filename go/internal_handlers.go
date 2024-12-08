@@ -10,8 +10,15 @@ import (
 // このAPIをインスタンス内から一定間隔で叩かせることで、椅子とライドをマッチングさせる
 func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	tx, err := db.Beginx()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer tx.Rollback()
+
 	ride := &Ride{}
-	if err := db.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id IS NULL ORDER BY created_at LIMIT 1`); err != nil {
+	if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id IS NULL ORDER BY created_at LIMIT 1 FOR UPDATE`); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -25,7 +32,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < 10; i++ {
 		var total int
-		if err := db.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE"); err != nil {
+		if err := tx.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE AND chair_id IS NULL"); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -36,27 +43,19 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 		randOffset := rand.Intn(total)
 		matched = &Chair{}
-		if err := db.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE LIMIT 1 OFFSET ?", randOffset); err != nil {
+		if err := tx.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE AND chair_id IS NULL LIMIT 1 OFFSET ?", randOffset); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		var incompleteCount int
-		query := `
-            SELECT COUNT(*)
-            FROM ride_statuses
-            WHERE ride_id IN (SELECT id FROM rides WHERE chair_id = ?)
-              AND chair_sent_at < 6
-        `
-		if err := db.GetContext(ctx, &incompleteCount, query, matched.ID); err != nil {
+		// 椅子をライドに割り当てる
+		if _, err := tx.ExecContext(ctx, "UPDATE rides SET chair_id = ? WHERE id = ?", matched.ID, ride.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 
-		if incompleteCount == 0 {
-			found = true
-			break
-		}
+		found = true
+		break
 	}
 
 	if !found {
@@ -64,7 +63,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := db.ExecContext(ctx, "UPDATE rides SET chair_id = ? WHERE id = ?", matched.ID, ride.ID); err != nil {
+	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
