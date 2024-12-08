@@ -925,19 +925,19 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 				if skip {
 					continue
 				}
-				for _, cl := range chairLocation {
-					if calculateDistance(coordinate.Latitude, coordinate.Longitude, cl.Latitude, cl.Longitude) <= distance {
-						nearbyChairs = append(nearbyChairs, appGetNearbyChairsResponseChair{
-							ID:    chair.ID,
-							Name:  chair.Name,
-							Model: chair.Model,
-							CurrentCoordinate: Coordinate{
-								Latitude:  cl.Latitude,
-								Longitude: cl.Longitude,
-							},
-						})
-					}
-				}
+			}
+		}
+		for _, cl := range chairLocation {
+			if calculateDistance(coordinate.Latitude, coordinate.Longitude, cl.Latitude, cl.Longitude) <= distance {
+				nearbyChairs = append(nearbyChairs, appGetNearbyChairsResponseChair{
+					ID:    chair.ID,
+					Name:  chair.Name,
+					Model: chair.Model,
+					CurrentCoordinate: Coordinate{
+						Latitude:  cl.Latitude,
+						Longitude: cl.Longitude,
+					},
+				})
 			}
 		}
 	}
