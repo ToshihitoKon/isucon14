@@ -21,6 +21,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 	}
 
 	empty := false
+	var matched *Chair
 	for i := 0; i < 10; i++ {
 		var total int
 		if err := db.GetContext(ctx, &total, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE"); err != nil {
