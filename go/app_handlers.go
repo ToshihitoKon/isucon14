@@ -767,7 +767,7 @@ func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNoti
 	err := tx.SelectContext(
 		ctx,
 		&rides,
-		`SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC`,
+		`SELECT * FROM rides FORCE INDEX(idx_chair_id_updated_at_desc) WHERE chair_id = ? ORDER BY updated_at DESC`,
 		chairID,
 	)
 	if err != nil {
@@ -889,7 +889,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		rides := []*Ride{}
-		if err := tx.SelectContext(ctx, &rides, `SELECT * FROM rides WHERE chair_id = ? ORDER BY created_at DESC`, chair.ID); err != nil {
+		if err := tx.SelectContext(ctx, &rides, `SELECT * FROM rides FORCE INDEX (idx_chair_id_created_at_desc) WHERE chair_id = ? ORDER BY created_at DESC`, chair.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
