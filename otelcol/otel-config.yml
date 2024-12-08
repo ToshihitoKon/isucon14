@@ -8,6 +8,8 @@ receivers:
       # disk:
       # filesystem:
       network:
+      processes:
+      process:
 
   nginx:
     endpoint: "http://localhost:80/status"
