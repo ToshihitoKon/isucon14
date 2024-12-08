@@ -28,8 +28,8 @@ user		= mysql
 #
 # Instead of skip-networking the default is now to listen only on
 # localhost which is more compatible and is not less secure.
-bind-address		= 127.0.0.1
-mysqlx-bind-address	= 127.0.0.1
+# bind-address		= 127.0.0.1
+# mysqlx-bind-address	= 127.0.0.1
 #
 # * Fine Tuning
 #
@@ -43,7 +43,7 @@ key_buffer_size		= 16M
 # the first time they are touched
 myisam-recover-options  = BACKUP
 
-# max_connections        = 151
+max_connections        = 10000
 
 # table_open_cache       = 4000
 
@@ -62,6 +62,7 @@ myisam-recover-options  = BACKUP
 log_error = /var/log/mysql/error.log
 #
 # Here you can see queries with especially long duration
+# TODO:最後に消す
 slow_query_log		= 1
 slow_query_log_file	= /var/log/mysql/mysql-slow.log
 long_query_time = 0
