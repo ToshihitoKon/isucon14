@@ -164,16 +164,14 @@ func calculateSale(ride Ride) int {
 }
 
 type chairWithDetail struct {
-	ID                     string       `db:"id"`
-	OwnerID                string       `db:"owner_id"`
-	Name                   string       `db:"name"`
-	AccessToken            string       `db:"access_token"`
-	Model                  string       `db:"model"`
-	IsActive               bool         `db:"is_active"`
-	CreatedAt              time.Time    `db:"created_at"`
-	UpdatedAt              time.Time    `db:"updated_at"`
-	TotalDistance          int          `db:"total_distance"`
-	TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
+	ID          string    `db:"id"`
+	OwnerID     string    `db:"owner_id"`
+	Name        string    `db:"name"`
+	AccessToken string    `db:"access_token"`
+	Model       string    `db:"model"`
+	IsActive    bool      `db:"is_active"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
 }
 
 type ownerGetChairResponse struct {
@@ -191,9 +189,9 @@ type ownerGetChairResponseChair struct {
 }
 
 type distanceDetail struct {
-	ChairID                string    `db:"chair_id"`
-	TotalDistance          int       `db:"total_distance"`
-	TotalDistanceUpdatedAt time.Time `db:"total_distance_updated_at"`
+	ChairID                string       `db:"chair_id"`
+	TotalDistance          int          `db:"total_distance"`
+	TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
 }
 
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
@@ -249,11 +247,11 @@ WHERE
 			Name:          chair.Name,
 			Model:         chair.Model,
 			Active:        chair.IsActive,
-			RegisteredAt:  distance.TotalDistanceUpdatedAt.UnixMilli(),
+			RegisteredAt:  chair.CreatedAt.UnixMilli(),
 			TotalDistance: distance.TotalDistance,
 		}
-		if chair.TotalDistanceUpdatedAt.Valid {
-			t := chair.TotalDistanceUpdatedAt.Time.UnixMilli()
+		if distance.TotalDistanceUpdatedAt.Valid {
+			t := distance.TotalDistanceUpdatedAt.Time.UnixMilli()
 			c.TotalDistanceUpdatedAt = &t
 		}
 		res.Chairs = append(res.Chairs, c)
