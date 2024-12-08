@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
-	"math/rand"
-	"time"
 )
 
 // このAPIをインスタンス内から一定間隔で叩かせることで、椅子とライドをマッチングさせる
@@ -24,44 +22,22 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 	matched := &Chair{}
 	empty := false
-
-	var count int
-    if err := db.GetContext(ctx, &count, "SELECT COUNT(*) FROM chairs WHERE is_active = TRUE"); err != nil {
-        writeError(w, http.StatusInternalServerError, err)
-        return
-    }
-
-		if count == 0 {
-			empty = true
-	} else {
-		// ランダムなオフセットを生成
-		rand.Seed(time.Now().UnixNano())
-
-		for i := 0; i < 10; i++ {
-			randomOffset := rand.Intn(count)
-
-			if err := db.GetContext(ctx, matched, "SELECT * FROM chairs WHERE is_active = TRUE LIMIT 1 OFFSET ?", randomOffset); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					w.WriteHeader(http.StatusNoContent)
-					return
-				}
-				writeError(w, http.StatusInternalServerError, err)
-			}
-
-			 // ライドステータスの確認クエリを最適化
-			 var isCompleted bool
-			if err := db.GetContext(ctx, &isCompleted, "SELECT COUNT(*) = 0 FROM (SELECT COUNT(chair_sent_at) = 6 AS completed FROM ride_statuses WHERE ride_id IN (SELECT id FROM rides WHERE chair_id = ?) GROUP BY ride_id) is_completed WHERE completed = FALSE", matched.ID); err != nil {
-				writeError(w, http.StatusInternalServerError, err)
+	for i := 0; i < 10; i++ {
+		if err := db.GetContext(ctx, matched, "SELECT * FROM chairs INNER JOIN (SELECT id FROM chairs WHERE is_active = TRUE ORDER BY RAND() LIMIT 1) AS tmp ON chairs.id = tmp.id LIMIT 1"); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			if isCompleted {
-				break
-			}
+			writeError(w, http.StatusInternalServerError, err)
 		}
-		// 再度アクティブな椅子が存在するか確認
-		if matched.ID == "" {
-			empty = true
-	}
+
+		if err := db.GetContext(ctx, &empty, "SELECT COUNT(*) = 0 FROM (SELECT COUNT(chair_sent_at) = 6 AS completed FROM ride_statuses WHERE ride_id IN (SELECT id FROM rides WHERE chair_id = ?) GROUP BY ride_id) is_completed WHERE completed = FALSE", matched.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if empty {
+			break
+		}
 	}
 	if !empty {
 		w.WriteHeader(http.StatusNoContent)
