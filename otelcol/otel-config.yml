@@ -1,0 +1,64 @@
+receivers:
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      # load:
+      # memory:
+      # disk:
+      # filesystem:
+      network:
+
+  nginx:
+    endpoint: "http://localhost:80/status"
+    collection_interval: 5s
+
+  filelog/nginx-access-logs:
+    include: ["${env:NGINX_ACCESS_LOG_FILE}"]
+    operators:
+      - type: json_parser
+        parse_from: body
+
+  # filelog/nginx-error-logs:
+  #   include: ["${env:NGINX_ERROR_LOG_FILE}"]
+  #   operators:
+
+processors:
+  batch:
+    send_batch_size: 10000
+    send_batch_max_size: 11000
+    timeout: 10s
+
+  resourcedetection/system:
+    detectors: ["system", "ec2"]
+
+  resource:
+    attributes:
+      - key: service.name
+        value: nginx
+        action: upsert
+      - key: isucon
+        value: isucon14
+        action: upsert
+
+exporters:
+  otlp:
+    endpoint: "${env:SIGNOZ_OTEL_ENDPOINT}"
+    tls:
+      insecure: true
+  debug:
+
+service:
+  pipelines:
+    metrics/hostmetrics:
+      receivers: [hostmetrics]
+      processors: [resourcedetection/system, resource, batch]
+      exporters: [otlp]
+    metrics/nginx:
+      receivers: [nginx]
+      processors: [resourcedetection/system, resource, batch]
+      exporters: [otlp]
+    logs/nginx:
+      receivers: [filelog/nginx-access-logs]
+      processors: [resourcedetection/system, resource, batch]
+      exporters: [otlp]

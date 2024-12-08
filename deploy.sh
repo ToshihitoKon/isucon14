@@ -8,6 +8,7 @@ sudo cp -r ./etc/nginx /etc/
 sudo cp -r ./etc/mysql /etc/
 
 # アプリケーションの再起動
+sudo nginx -t
 sudo systemctl restart mysql
 sudo systemctl restart nginx
 
