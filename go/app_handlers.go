@@ -888,14 +888,14 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := []*RideStatus{}
-	if err := tx.GetContext(ctx, &status, `SELECT * FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
+	rideStatus := []*RideStatus{}
+	if err := tx.SelectContext(ctx, &rideStatus, `SELECT * FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	chairLocation := []*ChairLocation{}
-	err = tx.GetContext(
+	err = tx.SelectContext(
 		ctx,
 		&chairLocation,
 		`SELECT * FROM chair_locations`,
@@ -916,7 +916,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 		for _, s := range rides {
 			if chair.ID == s.ID {
 				skip := false
-				for _, st := range status {
+				for _, st := range rideStatus {
 					if s.ID == st.RideID {
 						skip = true
 						break
@@ -940,57 +940,6 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-
-		// rides := []*Ride{}
-		// if err := tx.SelectContext(ctx, &rides, `SELECT * FROM rides FORCE INDEX (idx_chair_id_created_at_desc) WHERE chair_id = ? ORDER BY created_at DESC`, chair.ID); err != nil {
-		// 	writeError(w, http.StatusInternalServerError, err)
-		// 	return
-		// }
-
-		// skip := false
-		// for _, ride := range rides {
-		// 	// 過去にライドが存在し、かつ、それが完了していない場合はスキップ
-		// 	status, err := getLatestRideStatus(ctx, tx, ride.ID)
-		// 	if err != nil {
-		// 		writeError(w, http.StatusInternalServerError, err)
-		// 		return
-		// 	}
-		// 	if status != "COMPLETED" {
-		// 		skip = true
-		// 		break
-		// 	}
-		// }
-		// if skip {
-		// 	continue
-		// }
-
-		// 最新の位置情報を取得
-		// chairLocation := &ChairLocation{}
-		// err = tx.GetContext(
-		// 	ctx,
-		// 	chairLocation,
-		// 	`SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1`,
-		// 	chair.ID,
-		// )
-		// if err != nil {
-		// 	if errors.Is(err, sql.ErrNoRows) {
-		// 		continue
-		// 	}
-		// 	writeError(w, http.StatusInternalServerError, err)
-		// 	return
-		// }
-
-		// if calculateDistance(coordinate.Latitude, coordinate.Longitude, chairLocation.Latitude, chairLocation.Longitude) <= distance {
-		// 	nearbyChairs = append(nearbyChairs, appGetNearbyChairsResponseChair{
-		// 		ID:    chair.ID,
-		// 		Name:  chair.Name,
-		// 		Model: chair.Model,
-		// 		CurrentCoordinate: Coordinate{
-		// 			Latitude:  chairLocation.Latitude,
-		// 			Longitude: chairLocation.Longitude,
-		// 		},
-		// 	})
-		// }
 	}
 
 	retrievedAt := &time.Time{}
