@@ -202,7 +202,7 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	if err := db.SelectContext(ctx, &distanceDetail, `
 SELECT
   chair_id,
-  SUM(IFNULL(distance, 0)) AS total_distance,
+  distance AS total_distance,
   MAX(created_at)          AS total_distance_updated_at
 FROM (
   SELECT
