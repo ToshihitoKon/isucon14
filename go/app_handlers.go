@@ -914,30 +914,30 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, s := range rides {
+			skip := false
 			if chair.ID == s.ID {
-				skip := false
 				for _, st := range rideStatus {
 					if s.ID == st.RideID && st.Status != "COMPLETED" {
 						skip = true
 						break
 					}
 				}
-				if skip {
-					continue
-				}
 			}
-		}
-		for _, cl := range chairLocation {
-			if calculateDistance(coordinate.Latitude, coordinate.Longitude, cl.Latitude, cl.Longitude) <= distance {
-				nearbyChairs = append(nearbyChairs, appGetNearbyChairsResponseChair{
-					ID:    chair.ID,
-					Name:  chair.Name,
-					Model: chair.Model,
-					CurrentCoordinate: Coordinate{
-						Latitude:  cl.Latitude,
-						Longitude: cl.Longitude,
-					},
-				})
+			if skip {
+				continue
+			}
+			for _, cl := range chairLocation {
+				if calculateDistance(coordinate.Latitude, coordinate.Longitude, cl.Latitude, cl.Longitude) <= distance {
+					nearbyChairs = append(nearbyChairs, appGetNearbyChairsResponseChair{
+						ID:    chair.ID,
+						Name:  chair.Name,
+						Model: chair.Model,
+						CurrentCoordinate: Coordinate{
+							Latitude:  cl.Latitude,
+							Longitude: cl.Longitude,
+						},
+					})
+				}
 			}
 		}
 	}
