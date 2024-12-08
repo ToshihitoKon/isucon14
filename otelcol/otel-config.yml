@@ -18,9 +18,6 @@ receivers:
     operators:
       - type: json_parser
         parse_from: body
-        timestamp:
-          key: timestamp
-          format: "%Y-%m-%dT%H:%M:%S.%fZ"
 
   # filelog/nginx-error-logs:
   #   include: ["${env:NGINX_ERROR_LOG_FILE}"]
@@ -39,9 +36,6 @@ processors:
     attributes:
       - key: service.name
         value: nginx
-        action: upsert
-      - key: host.name
-        value: ${HOSTNAME}
         action: upsert
       - key: isucon
         value: isucon14
