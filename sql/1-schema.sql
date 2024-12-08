@@ -33,7 +33,7 @@ CREATE TABLE chairs
   created_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '登録日時',
   updated_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新日時',
   PRIMARY KEY (id),
-  INDEX idx_id_is_active (id, is_active),
+  INDEX idx_is_active (is_active),
   INDEX idx_access_token (access_token),
   INDEX idx_owner_id (owner_id)
 )
