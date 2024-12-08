@@ -229,7 +229,7 @@ WHERE
 	if err := db.SelectContext(ctx, &distanceDetail, fmt.Sprintf(`
 SELECT
   chair_id,
-  SUM(distance) AS total_distance,
+  COALESCE(SUM(distance),0) AS total_distance,
   MAX(created_at)          AS total_distance_updated_at
 FROM (
   SELECT
