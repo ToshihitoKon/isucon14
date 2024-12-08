@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/oklog/ulid/v2"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -193,6 +194,8 @@ type ownerGetChairResponseChair struct {
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	owner := ctx.Value("owner").(*Owner)
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("initializing ownerGetChairs")
 
 	chairs := []chairWithDetail{}
 	if err := db.SelectContext(ctx, &chairs, `SELECT id,
@@ -220,6 +223,7 @@ WHERE owner_id = ?
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	span.AddEvent("query done")
 
 	res := ownerGetChairResponse{}
 	for _, chair := range chairs {
@@ -237,5 +241,6 @@ WHERE owner_id = ?
 		}
 		res.Chairs = append(res.Chairs, c)
 	}
+	span.AddEvent("response created")
 	writeJSON(w, http.StatusOK, res)
 }
