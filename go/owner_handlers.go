@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -198,28 +200,6 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	owner := ctx.Value("owner").(*Owner)
 
-	distanceDetail := []distanceDetail{}
-	if err := db.SelectContext(ctx, &distanceDetail, `
-SELECT
-  chair_id,
-  SUM(distance) AS total_distance,
-  MAX(created_at)          AS total_distance_updated_at
-FROM (
-  SELECT
-    chair_id,
-    created_at,
-    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-  FROM chair_locations
-	FORCE INDEX (idx_latitude_longitude_chair_id_created_at)
-) AS tmp
-GROUP BY
-  chair_id
-`); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-
 	chairs := []chairWithDetail{}
 	if err := db.SelectContext(ctx, &chairs, `
 SELECT
@@ -236,6 +216,34 @@ FROM
 WHERE
   c.owner_id = ?
 `, owner.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	ids := []string{}
+	for _, chair := range chairs {
+		ids = append(ids, fmt.Sprintf(`"%s"`, chair.ID))
+	}
+
+	distanceDetail := []distanceDetail{}
+	if err := db.SelectContext(ctx, &distanceDetail, fmt.Sprintf(`
+SELECT
+  chair_id,
+  SUM(distance) AS total_distance,
+  MAX(created_at)          AS total_distance_updated_at
+FROM (
+  SELECT
+    chair_id,
+    created_at,
+    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+  FROM chair_locations
+	FORCE INDEX (idx_latitude_longitude_chair_id_created_at)
+	WHERE chair_id IN (%s)
+) AS tmp
+GROUP BY
+  chair_id
+`, strings.Join(ids, ","))); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
