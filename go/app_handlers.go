@@ -889,7 +889,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := []*RideStatus{}
-	if err := tx.GetContext(ctx, &status, `SELECT ride_id FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
+	if err := tx.GetContext(ctx, &status, `SELECT * FROM ride_statuses WHERE status != "COMPLETED"`); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
